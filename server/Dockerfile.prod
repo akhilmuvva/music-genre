@@ -1,0 +1,34 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# system deps needed for audio libs
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential \
+       libsndfile1 \
+       gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install python deps
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt gunicorn
+
+# Copy Django project
+COPY music_genre_classifier /app/music_genre_classifier
+COPY create_dummy_models.py /app/create_dummy_models.py
+
+# Create models dir and generate dummy models if real ones not provided
+RUN mkdir -p /app/models && python /app/create_dummy_models.py || true
+
+WORKDIR /app
+ENV DJANGO_SETTINGS_MODULE=music_genre_classifier.settings
+
+# Collect static files (if any)
+RUN python /app/music_genre_classifier/manage.py collectstatic --noinput || true
+
+EXPOSE 8000
+
+CMD ["gunicorn", "music_genre_classifier.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]

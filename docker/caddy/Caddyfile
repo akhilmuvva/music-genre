@@ -1,0 +1,12 @@
+GenreSnap.com
+www.GenreSnap.com
+
+# Proxy API requests to Django
+handle_path /api/* {
+    reverse_proxy django:8000
+}
+
+# Proxy everything else to nginx static server
+handle {
+    reverse_proxy nginx:80
+}

@@ -1,0 +1,8 @@
+Django==5.0.6
+librosa
+numpy
+pandas
+scikit-learn
+django-cors-headers
+# Optional: for production
+# gunicorn

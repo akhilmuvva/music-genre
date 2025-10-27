@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  django:
+    image: ${GHCR_OWNER:-genresnap}/music_genre_django:latest
+    build:
+      context: ./server
+      dockerfile: Dockerfile.prod
+    container_name: music_genre_django_prod
+    volumes:
+      - ./server/models:/app/models:ro
+    expose:
+      - "8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=music_genre_classifier.settings
+
+  nginx:
+    image: ${GHCR_OWNER:-genresnap}/music_genre_client:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.client.prod
+    container_name: music_genre_nginx_prod
+    ports:
+      - "8080:80"
+    depends_on:
+      - django
+
+  caddy:
+    image: caddy:2
+    container_name: music_genre_caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nginx
+      - django
+
+# Optional: if you still want the Node backend in prod, add it and proxy from nginx
+# node-backend:
+#   build:
+#     context: ./server
+#     dockerfile: node.Dockerfile
+#   container_name: music_genre_node_prod
+#   expose:
+#     - "5000"
+#   depends_on:
+#     - django
+
+volumes:
+  caddy_data:
+  caddy_config:

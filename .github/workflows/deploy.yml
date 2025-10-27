@@ -1,0 +1,97 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      max_retries:
+        description: 'Max attempts for docker info retry loop (in combination with sleep_secs approximates total wait time)'
+        required: false
+        default: '24'
+      sleep_secs:
+        description: 'Seconds to sleep between docker info retries'
+        required: false
+        default: '5'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run remote deployment commands on server
+        uses: appleboy/ssh-action@v0.1.8
+        env:
+          # precedence: workflow_dispatch input -> repo secret -> fallback default
+          MAX_RETRIES: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.max_retries || secrets.DOCKER_RETRY_MAX || '24' }}
+          SLEEP_SECS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sleep_secs || secrets.DOCKER_RETRY_SLEEP || '5' }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+        script: |
+        set -e
+        cd ${{ secrets.REPO_DIR }}
+
+        echo "== Pre-deploy checks =="
+        if ! command -v docker >/dev/null 2>&1; then
+          echo "ERROR: docker not installed on remote host"
+          exit 1
+        fi
+        echo "Docker version:"
+    docker --version || true
+
+    # Check docker daemon with retry (Docker may be starting after install)
+    # Respect env vars passed from the workflow (MAX_RETRIES, SLEEP_SECS) with sensible defaults
+  MAX_RETRIES=${MAX_RETRIES:-24}
+    SLEEP_SECS=${SLEEP_SECS:-5}
+        attempt=1
+        while [ $attempt -le $MAX_RETRIES ]; do
+          if docker info >/dev/null 2>&1; then
+            echo "Docker daemon appears to be running (attempt $attempt)"
+            break
+          else
+            echo "docker info failed (attempt $attempt/$MAX_RETRIES). Waiting ${SLEEP_SECS}s..."
+            attempt=$((attempt+1))
+            sleep ${SLEEP_SECS}
+          fi
+        done
+        if [ $attempt -gt $MAX_RETRIES ]; then
+          echo "WARNING: docker daemon did not become available after $((MAX_RETRIES*SLEEP_SECS)) seconds"
+          echo "Continuing deployment; subsequent docker-compose commands may fail if docker isn't running."
+        fi
+
+        # Check docker compose availability
+        if docker compose version >/dev/null 2>&1; then
+          echo "Docker Compose (v2) available:"
+          docker compose version || true
+        elif command -v docker-compose >/dev/null 2>&1; then
+          echo "Docker Compose (v1) available:"
+          docker-compose --version || true
+        else
+          echo "WARNING: docker compose not found"
+        fi
+
+        # Create or update .env with secrets (API token and client token)
+        cat > .env <<'EOF'
+  API_TOKEN=${{ secrets.SERVER_API_TOKEN }}
+  REACT_APP_API_TOKEN=${{ secrets.REACT_APP_API_TOKEN }}
+  GHCR_OWNER=${{ secrets.GHCR_OWNER }}
+  EOF
+
+        git fetch --prune
+        git reset --hard origin/main
+
+        # If GHCR_PAT provided, login so we can pull private images from GHCR
+        if [ -n "${{ secrets.GHCR_PAT }}" ]; then
+          echo "Logging into GHCR..."
+          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ secrets.GHCR_OWNER }}" --password-stdin
+        fi
+
+        # Pull latest images and rebuild if necessary
+        docker-compose -f docker-compose.prod.yml pull || true
+        docker-compose -f docker-compose.prod.yml up -d --build

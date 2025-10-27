@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  django:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: music_genre_django
+    volumes:
+      - ./server/music_genre_classifier:/app/music_genre_classifier:ro
+      - ./server/models:/app/models:ro
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  node-backend:
+    build:
+      context: ./server
+      dockerfile: node.Dockerfile
+    container_name: music_genre_node
+    volumes:
+      - ./server:/app:ro
+    ports:
+      - "5000:5000"
+    depends_on:
+      - django
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: music_genre_client
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./:/app:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - node-backend
+
+# Notes:
+# - The Django service exposes port 8000
+# - The Node backend (if used) exposes port 5000
+# - The React dev server runs on port 3000
+# Adjust volumes or remove :ro if you want file edits to reflect inside containers.

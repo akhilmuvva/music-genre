@@ -1,0 +1,15 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Music Genre Classifier</title>
+</head>
+<body>
+    <h1>Upload Music File</h1>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="audio_file">
+        <button type="submit">Predict Genre</button>
+    </form>
+</body>
+</html>

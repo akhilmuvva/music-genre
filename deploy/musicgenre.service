@@ -1,0 +1,15 @@
+[Unit]
+Description=MusicGenre Docker Compose
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/music-genre
+RemainAfterExit=yes
+ExecStart=/usr/bin/docker compose -f /opt/music-genre/docker-compose.prod.yml up -d
+ExecStop=/usr/bin/docker compose -f /opt/music-genre/docker-compose.prod.yml down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
