@@ -1,0 +1,19 @@
+# Render service manifest (example) — adjust region/plan as needed.
+services:
+  - type: web
+    name: music-genre-web
+    env: docker
+    branch: main
+    region: oregon
+    plan: free
+    disk: 0
+    dockerContext: server
+    dockerfilePath: Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        value: ""
+      - key: API_TOKEN
+        value: ""
+      - key: REACT_APP_API_TOKEN
+        value: ""

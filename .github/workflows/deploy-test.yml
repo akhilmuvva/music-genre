@@ -1,0 +1,42 @@
+name: Deploy test (dry-run)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for docker-compose file and validate
+        run: |
+          set -e
+          if [ -f docker-compose.prod.yml ]; then
+            echo "Found docker-compose.prod.yml — validating"
+            docker compose -f docker-compose.prod.yml config >/dev/null
+          elif [ -f docker-compose.yml ]; then
+            echo "Found docker-compose.yml — validating"
+            docker compose -f docker-compose.yml config >/dev/null
+          else
+            echo "No docker-compose file found"
+            exit 1
+          fi
+
+      - name: Validate deploy workflow content
+        run: |
+          missing=0
+          for key in SSH_HOST SSH_PRIVATE_KEY REPO_DIR SERVER_API_TOKEN; do
+            if ! grep -q "$key" .github/workflows/deploy.yml; then
+              echo "Missing $key in .github/workflows/deploy.yml"
+              missing=1
+            fi
+          done
+          if [ $missing -eq 1 ]; then
+            echo "One or more required items missing from deploy.yml"; exit 2
+          fi
+
+      - name: Sanity checks
+        run: |
+          echo "Checked compose and required keys in deploy.yml — dry run successful"

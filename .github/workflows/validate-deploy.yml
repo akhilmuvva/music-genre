@@ -43,61 +43,61 @@ jobs:
           echo 'Running yamllint...'
           yamllint .github/workflows/deploy.yml || exit 2
 
-    - name: Content-level checks
-    run: |
-      python - <<'PY'
-      import sys, yaml
-      p = '.github/workflows/deploy.yml'
-      try:
-        with open(p, 'r', encoding='utf-8') as f:
-          raw = f.read()
-          data = yaml.safe_load(raw)
-      except Exception as e:
-        print('ERROR: failed to parse deploy.yml for content checks:', e)
-        sys.exit(2)
+      - name: Content-level checks
+        run: |
+          python - <<'PY'
+          import sys, yaml
+          p = '.github/workflows/deploy.yml'
+          try:
+              with open(p, 'r', encoding='utf-8') as f:
+                  raw = f.read()
+                  data = yaml.safe_load(raw)
+          except Exception as e:
+              print('ERROR: failed to parse deploy.yml for content checks:', e)
+              sys.exit(2)
 
-      errors = []
+          errors = []
 
-      # Check workflow_dispatch inputs
-      on = data.get('on', {})
-      wf_inputs = {}
-      if isinstance(on, dict):
-        wf_inputs = on.get('workflow_dispatch', {}) if on.get('workflow_dispatch') else {}
-        if isinstance(wf_inputs, dict):
-          wf_inputs = wf_inputs.get('inputs', {}) or {}
+          # Check workflow_dispatch inputs
+          on = data.get('on', {})
+          wf_inputs = {}
+          if isinstance(on, dict):
+              wf_inputs = on.get('workflow_dispatch', {}) if on.get('workflow_dispatch') else {}
+              if isinstance(wf_inputs, dict):
+                  wf_inputs = wf_inputs.get('inputs', {}) or {}
 
-      if 'max_retries' not in wf_inputs or 'sleep_secs' not in wf_inputs:
-        errors.append('Missing workflow_dispatch inputs: max_retries and/or sleep_secs')
+          if 'max_retries' not in wf_inputs or 'sleep_secs' not in wf_inputs:
+              errors.append('Missing workflow_dispatch inputs: max_retries and/or sleep_secs')
 
-      # Required secret references to be present in the deploy workflow file
-      required_secrets = [
-        'SSH_HOST', 'SSH_USER', 'SSH_PRIVATE_KEY', 'SSH_PORT', 'REPO_DIR',
-        'SERVER_API_TOKEN', 'REACT_APP_API_TOKEN', 'GHCR_OWNER'
-      ]
-      for s in required_secrets:
-        if s not in raw:
-          errors.append(f"Missing reference to secret '{s}' in deploy.yml")
+          # Required secret references to be present in the deploy workflow file
+          required_secrets = [
+              'SSH_HOST', 'SSH_USER', 'SSH_PRIVATE_KEY', 'SSH_PORT', 'REPO_DIR',
+              'SERVER_API_TOKEN', 'REACT_APP_API_TOKEN', 'GHCR_OWNER'
+          ]
+          for s in required_secrets:
+              if s not in raw:
+                  errors.append(f"Missing reference to secret '{s}' in deploy.yml")
 
-      # Check for SSH action and docker-compose commands
-      if 'appleboy/ssh-action' not in raw:
-        errors.append('SSH action (appleboy/ssh-action) not found')
+          # Check for SSH action and docker-compose commands
+          if 'appleboy/ssh-action' not in raw:
+              errors.append('SSH action (appleboy/ssh-action) not found')
 
-      if 'docker-compose -f docker-compose.prod.yml' not in raw and 'docker compose -f docker-compose.prod.yml' not in raw:
-        if 'docker-compose -f docker-compose.prod.yml up' not in raw:
-          errors.append('docker-compose.prod commands not found in deploy.yml')
+          if 'docker-compose -f docker-compose.prod.yml' not in raw and 'docker compose -f docker-compose.prod.yml' not in raw:
+              if 'docker-compose -f docker-compose.prod.yml up' not in raw:
+                  errors.append('docker-compose.prod commands not found in deploy.yml')
 
-      # Check for MAX_RETRIES / SLEEP_SECS env usage
-      if 'MAX_RETRIES' not in raw or 'SLEEP_SECS' not in raw:
-        errors.append('MAX_RETRIES and/or SLEEP_SECS not referenced in deploy.yml')
+          # Check for MAX_RETRIES / SLEEP_SECS env usage
+          if 'MAX_RETRIES' not in raw or 'SLEEP_SECS' not in raw:
+              errors.append('MAX_RETRIES and/or SLEEP_SECS not referenced in deploy.yml')
 
-      if errors:
-        print('Content-level checks FAILED:')
-        for e in errors:
-          print(' - ' + e)
-        sys.exit(3)
+          if errors:
+              print('Content-level checks FAILED:')
+              for e in errors:
+                  print(' - ' + e)
+              sys.exit(3)
 
-      print('Content-level checks passed.')
-      PY
+          print('Content-level checks passed.')
+          PY
 
-    - name: Success
-    run: echo 'deploy.yml validation passed.'
+      - name: Success
+        run: echo 'deploy.yml validation passed.'
