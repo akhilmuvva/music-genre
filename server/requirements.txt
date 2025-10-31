@@ -4,5 +4,7 @@ numpy
 pandas
 scikit-learn
 django-cors-headers
-# Optional: for production
-# gunicorn
+# Production / runtime extras
+gunicorn
+# For optional model download from S3
+boto3

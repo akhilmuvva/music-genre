@@ -27,4 +27,6 @@ WORKDIR /app/music_genre_classifier
 
 EXPOSE 8000
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Use gunicorn in production (Procfile also references gunicorn). This keeps
+# the Docker image behavior consistent with the Procfile used by PaaS.
+CMD ["gunicorn", "music_genre_classifier.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
