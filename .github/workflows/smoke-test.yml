@@ -1,0 +1,73 @@
+name: CI - Build & Smoke Test
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build server Docker image (capture logs)
+        run: |
+          # Use plain progress and tee the output to a file so we can upload it as an artifact
+          docker build --progress=plain -t music-genre-server:ci server | tee build.log
+
+      - name: Upload build log
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-build-log
+          path: build.log
+
+      - name: Start server container
+        run: |
+          docker network create musicnet || true
+          docker run --name music-genre-server-ci --network musicnet -d \
+            -e DJANGO_SECRET_KEY=ci \
+            -e ALLOWED_HOSTS=localhost \
+            -e API_TOKEN=ci \
+            music-genre-server:ci
+
+      - name: Wait for readiness
+        run: |
+          # Poll the container's HTTP endpoint until ready (timeout ~60s)
+          for i in {1..30}; do
+            if docker run --rm --network musicnet curlimages/curl:8.4.0 -sSf http://music-genre-server-ci:8000/ >/dev/null 2>&1; then
+              echo "server ready"
+              exit 0
+            fi
+            echo "waiting for server to become ready... ($i)"
+            sleep 2
+          done
+          echo "server did not become ready in time"
+          docker logs --tail 200 music-genre-server-ci || true
+          exit 1
+
+      - name: Run smoke POST to /api/predict
+        run: |
+          docker run --rm --network musicnet -v "${{ github.workspace }}/server:/work" curlimages/curl:8.4.0 \
+            -i -X POST -H "X-API-KEY: ci" -H "Host: localhost" -F file=@/work/test.wav http://music-genre-server-ci:8000/api/predict > response.txt || true
+          cat response.txt
+          # Expect HTTP/1.1 200 OK
+          grep -q "HTTP/1.1 200" response.txt || (echo "Smoke test failed" && exit 1)
+
+      - name: Dump server logs and upload
+        run: |
+          docker logs --tail 1000 music-genre-server-ci | tee server.log || true
+
+      - name: Upload server logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: server.log
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop music-genre-server-ci || true
+          docker rm music-genre-server-ci || true
+          docker network rm musicnet || true
