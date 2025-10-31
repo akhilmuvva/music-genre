@@ -14,8 +14,10 @@ jobs:
 
       - name: Build server Docker image (capture logs)
         run: |
-          # Use plain progress and tee the output to a file so we can upload it as an artifact
-          docker build --progress=plain -t music-genre-server:ci server | tee build.log
+          # Capture both stdout and stderr to build.log and ensure file is flushed before upload
+          docker build --progress=plain -t music-genre-server:ci server > build.log 2>&1 || true
+          # small sleep to avoid race between process exit and artifact upload
+          sleep 2
 
       - name: Upload build log
         uses: actions/upload-artifact@v4
