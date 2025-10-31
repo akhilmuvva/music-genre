@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'classifier', # Add the classifier app here
+    'music_genre_classifier.apps.ClassifierConfig', # Register the app config
 ]
 
 MIDDLEWARE = [

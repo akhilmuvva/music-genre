@@ -1,8 +1,8 @@
 # Dockerfile for Django app (music_genre_classifier)
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ COPY create_dummy_models.py /app/create_dummy_models.py
 # Create models dir and generate dummy models if real ones not provided
 RUN mkdir -p /app/models && python /app/create_dummy_models.py || true
 
-WORKDIR /app/music_genre_classifier
+WORKDIR /app
 
 EXPOSE 8000
 
