@@ -2,6 +2,13 @@
 
 Simple React app that implements a drag-and-drop audio upload UI with an audio preview and a genre prediction. Includes a tiny Express backend (`/server`) that accepts uploaded audio and proxies it to an external model endpoint (or returns a fallback prediction).
 
+Contributors
+- Backend/server: @BalaramTaddi
+- Frontend: @jhansikupireddy-lang (profile: https://share.google/X2qPUjX6Oyr3rVVj9)
+
+License
+- MIT License — see [LICENSE](LICENSE)
+
 Prereqs
 - Node.js (16+ recommended)
 
